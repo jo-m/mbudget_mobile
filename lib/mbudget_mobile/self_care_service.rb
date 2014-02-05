@@ -5,7 +5,6 @@ module MbudgetMobile
   class SelfCareService
     include HTTParty
     base_uri 'https://www.m-budget-mobile-service.ch/MBudget/Services/SelfCareService.svc'
-    debug_output
 
     def self.start(args={})
       instance = new(*args)
@@ -48,30 +47,6 @@ module MbudgetMobile
       return false
     end
 
-    def get_sim_details
-      query_service '/GetSimDetails'
-    end
-
-    def get_contact_details
-      query_service '/GetContactDetails'
-    end
-
-    def get_contract_details
-      query_service '/GetContractDetails'
-    end
-
-    def get_service_context
-      query_service '/GetSelfServiceContext'
-    end
-
-    def query_bundles
-      query_service '/QueryBundles'
-    end
-
-    def get_totals_for_this_month
-      query_service '/GetSdrTotalsForThisMonth'
-    end
-
     def login_ok?
       return false if @cookie.nil?
       if get_sim_details.nil?
@@ -80,6 +55,101 @@ module MbudgetMobile
       else
         true
       end
+    end
+
+    def get_sim_details
+      query_service 'GetSimDetails'
+    end
+
+    def get_contact_details
+      query_service 'GetContactDetails'
+    end
+
+    def get_contract_details
+      query_service 'GetContractDetails'
+    end
+
+    def get_service_context
+      query_service 'GetSelfServiceContext'
+    end
+
+    def query_bundles
+      query_service 'QueryBundles'
+    end
+
+    def get_totals_for_this_month
+      query_service 'GetSdrTotalsForThisMonth'
+    end
+
+    def change_password(password)
+      post_service('ChangePassword', {password: password, securityQuestion: 1})
+    end
+
+    # boolean
+    def update_premium_09000901(active)
+      post_service('UpdatePremium09000901', {active: active})
+    end
+
+    # boolean
+    def update_premium_0906(active)
+      post_service('UpdatePremium0906', {active: active})
+    end
+
+    # one of
+    #   MbudgetMobile::SMS_BARRING_ALLOW_ALL = 0
+    #   MbudgetMobile::SMS_BARRING_FORBID_ADULT = 1
+    #   MbudgetMobile::SMS_BARRING_FORBID_ALL = 2
+    def update_sms_barring(active)
+      post_service('UpdateSmsBarring', {active: active})
+    end
+
+    # boolean
+    def update_voicemail(active)
+      post_service('UpdateVoicemail', {active: active})
+    end
+
+    # boolean
+    def get_premium_09000901
+      (query_service 'GetPremium09000901') == 'true'
+    end
+
+    # boolean
+    def get_premium_0906
+      (query_service 'GetPremium0906') == 'true'
+    end
+
+    # one of
+    #   0 = MbudgetMobile::SMS_BARRING_ALLOW_ALL
+    #   1 = MbudgetMobile::SMS_BARRING_FORBID_ADULT
+    #   2 = MbudgetMobile::SMS_BARRING_FORBID_ALL
+    def get_sms_barring
+      query_service 'GetSmsBarring'
+    end
+
+    # boolean
+    def get_voicemail
+      (query_service 'GetVoicemail') == 'true'
+    end
+
+    def get_usage_periods
+      query_service 'GetSdrPeriods'
+    end
+
+    # period: index of period in get_usage_periods
+    # returns: AccumulatedAmount is amount in francs
+    # SdrType is one of
+    #   0 = MBudgetMobile::USAGE_TYPE_ALL
+    #   1 = MBudgetMobile::USAGE_TYPE_CHARGES
+    #   2 = MBudgetMobile::USAGE_TYPE_DATA
+    #   3 = MBudgetMobile::USAGE_TYPE_SMS
+    #   4 = MBudgetMobile::USAGE_TYPE_MMS
+    #   5 = MBudgetMobile::USAGE_TYPE_CALLS
+    def get_usage_totals(period)
+      post_service('GetSdrTotals', {period: period})
+    end
+
+    def get_usage_for_period
+      raise NotImplementedError
     end
 
     @log = nil
@@ -128,12 +198,15 @@ module MbudgetMobile
     class UnknownError < Exception
     end
 
+    class InvalidArgumentsException < Exception
+    end
+
     private
 
       def query_service(path)
         begin
           response = self.class.post(
-            path,
+            "/#{path}",
             headers: { 'Cookie' => @cookie }
           )
         rescue SocketError
@@ -151,7 +224,46 @@ module MbudgetMobile
           return nil
         end
 
-        JSON.parse(response.body)
+        begin
+          JSON.parse(response.body)
+        rescue JSON::ParserError
+          return true if response.body.empty?
+          response.body
+        end
+      end
+
+      def post_service(path, data)
+        begin
+          response = self.class.post(
+            "/#{path}",
+            body: data.to_json,
+            headers: {
+              'Cookie' => @cookie,
+              'Content-Type' => 'application/json'
+            }
+          )
+
+        rescue SocketError
+          raise ServiceNotReachableException unless @noraise
+          return false
+        end
+
+        if response.code == 403
+          raise InvalidLoginEception unless @noraise
+          return false
+        end
+
+        if response.code == 400
+          raise InvalidLoginEception unless @noraise
+          return false
+        end
+
+        if response.code != 200
+          raise UnknownError unless @noraise
+          return false
+        end
+
+        return response.body.empty? ? true : JSON.parse(response.body)
       end
   end
 end
