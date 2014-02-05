@@ -6,11 +6,11 @@ require 'mbudget_mobile/version'
 Gem::Specification.new do |spec|
   spec.name          = "mbudget_mobile"
   spec.version       = MbudgetMobile::VERSION
-  spec.authors       = ["Jonathan Mueller"]
+  spec.authors       = ["Jonathan Müller"]
   spec.email         = ["j.mueller@apoveda.ch"]
-  spec.summary       = %q{TODO: Write a short summary. Required.}
-  spec.description   = %q{TODO: Write a longer description. Optional.}
-  spec.homepage      = ""
+  spec.summary       = %q{A ruby gem to make access to the Swiss Migros Budget Mobile provider customer website easier}
+  spec.description   = %q{At the moment, only login and reading the current balance are supported.}
+  spec.homepage      = "http://github.com/jo-m/mbudget_mobile/"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")
